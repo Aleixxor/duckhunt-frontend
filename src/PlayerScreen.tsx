@@ -19,6 +19,11 @@ const PlayerScreen = () => {
       id: id,
       score: 0,
       confirmed: false,
+      position: {
+        alpha: 0,
+        beta: 0,
+        gamma: 0
+      }
     });
   }, [roomId]);
 
@@ -38,7 +43,7 @@ const PlayerScreen = () => {
         gamma: event.gamma ?? 0
       };
       setPlayerPosition(_playerPosition);
-      push(ref(database, `rooms/${roomId}/players/${playerId}/position`), _playerPosition);
+      update(ref(database, `rooms/${roomId}/players/${playerId}`), {position: _playerPosition});
 
       if (event.gamma !== null) {
         // Converte de -90 a 90 para 0 a 100
