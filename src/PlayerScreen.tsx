@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { database, ref, set, push, update } from './firebase';
 import { v4 as uuidv4 } from 'uuid';
+import { PlayerPosition } from './types';
 
 const PlayerScreen = () => {
   const { roomId } = useParams();
   const [orientation, setOrientation] = useState(50); // valor entre 0 e 100
   const [playerId, setPlayerId] = useState<string>('');
   const [confirmSent, setConfirmSent] = useState(false);
+  const [playerPosition, setPlayerPosition] = useState<PlayerPosition>();
 
   // Ao montar, gera um ID único e adiciona o jogador na sala
   useEffect(() => {
@@ -30,11 +32,14 @@ const PlayerScreen = () => {
 
       // acl.start();
 
-      const { alpha, beta, gamma } = event;
-      const playerPosition = { alpha, beta, gamma };
-      
-      push(ref(database, `rooms/${roomId}/players/${playerId}/position`), playerPosition);
-      
+      const _playerPosition: PlayerPosition = { 
+        alpha: event.alpha ?? 0, 
+        beta: event.beta ?? 0, 
+        gamma: event.gamma ?? 0
+      };
+      setPlayerPosition(_playerPosition);
+      push(ref(database, `rooms/${roomId}/players/${playerId}/position`), _playerPosition);
+
       if (event.gamma !== null) {
         // Converte de -90 a 90 para 0 a 100
         const value = ((event.gamma + 90) / 180) * 100;
@@ -73,6 +78,7 @@ const PlayerScreen = () => {
     <div style={{ textAlign: 'center', padding: '20px' }} onClick={handleShoot}>
       <h2>Participante - Sala {roomId}</h2>
       <p>Toque para atirar</p>
+      <p>Position: {playerPosition?.alpha}, {playerPosition?.beta}, {playerPosition?.gamma}</p>
       <button onClick={handleConfirmPhase}>Confirmar Próxima Fase</button>
     </div>
   );

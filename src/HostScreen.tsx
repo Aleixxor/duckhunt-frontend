@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { database, ref, set, onValue, onChildAdded, remove, update } from './firebase';
+import { PlayerPosition } from './types';
 
 type Duck = {
   id: string;
@@ -13,11 +14,7 @@ type Player = {
   id: string;
   score: number;
   confirmed: boolean;
-  position: {
-    alpha: number;
-    beta: number;
-    gamma: number;
-  };
+  position: PlayerPosition;
 };
 
 const HostScreen = () => {
