@@ -78,7 +78,9 @@ const PlayerScreen = () => {
     <div style={{ textAlign: 'center', padding: '20px' }} onClick={handleShoot}>
       <h2>Participante - Sala {roomId}</h2>
       <p>Toque para atirar</p>
-      <p>Position: {playerPosition?.alpha}, {playerPosition?.beta}, {playerPosition?.gamma}</p>
+      <p>Alpha: {playerPosition?.alpha}</p>
+      <p>Beta: {playerPosition?.beta}</p>
+      <p>Gamma: {playerPosition?.gamma}</p>
       <button onClick={handleConfirmPhase}>Confirmar Próxima Fase</button>
     </div>
   );
