@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { database, ref, set, onValue, onChildAdded, remove, update } from './firebase';
 
@@ -128,6 +128,7 @@ const HostScreen = () => {
   // Ao montar, inicia a fase (se ainda não foi iniciada)
   useEffect(() => {
     startPhase();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
   return (
