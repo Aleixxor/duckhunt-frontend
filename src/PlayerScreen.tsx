@@ -10,6 +10,7 @@ const PlayerScreen = () => {
   const [playerId, setPlayerId] = useState<string>('');
   const [confirmSent, setConfirmSent] = useState(false);
   const [playerPosition, setPlayerPosition] = useState<PlayerPosition>();
+  const [carDirection, setCarDirection] = useState<string>("center");
 
   // Ao montar, gera um ID único e adiciona o jogador na sala
   useEffect(() => {
@@ -43,7 +44,19 @@ const PlayerScreen = () => {
         gamma: event.gamma ?? 0
       };
       setPlayerPosition(_playerPosition);
-      set(ref(database, `rooms/${roomId}/players/${playerId}`), {position: _playerPosition});
+      let _carDirection = "";
+      if(_playerPosition.beta > 20) {
+        _carDirection = "right"; 
+      } else if(_playerPosition.beta < -20) {
+        _carDirection = "left";
+      } else {
+        _carDirection = "center";
+      }
+
+      if(_carDirection !== carDirection) {
+        setCarDirection(_carDirection);
+        set(ref(database, `rooms/${roomId}/players/${playerId}`), {carDirection: carDirection});
+      }
 
       if (event.gamma !== null) {
         // Converte de -90 a 90 para 0 a 100

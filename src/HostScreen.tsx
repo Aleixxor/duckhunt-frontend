@@ -11,6 +11,7 @@ type Duck = {
 };
 
 type Player = {
+  carDirection: string;
   id: string;
   score: number;
   confirmed: boolean;
@@ -163,7 +164,9 @@ const HostScreen = () => {
       <ul>
         {Object.values(players).map(player => (
           <li key={player.id}>
-            {player.id} - Pontos: {player.score} {player.confirmed && '(Confirmou)'} - Position: {player.position?.alpha}, {player.position?.beta}, {player.position?.gamma}
+            {player.id} - Car Direction: {player.carDirection}
+            {/* Pontos: {player.score} {player.confirmed && '(Confirmou)'} -  */}
+            {/* Position: {player.position?.alpha}, {player.position?.beta}, {player.position?.gamma} */}
             <br />
             <button onClick={() => handleRemovePlayer(player.id)}>Remover</button>
           </li>
