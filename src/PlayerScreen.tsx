@@ -43,7 +43,7 @@ const PlayerScreen = () => {
         gamma: event.gamma ?? 0
       };
       setPlayerPosition(_playerPosition);
-      update(ref(database, `rooms/${roomId}/players/${playerId}`), {position: _playerPosition});
+      set(ref(database, `rooms/${roomId}/players/${playerId}`), {position: _playerPosition});
 
       if (event.gamma !== null) {
         // Converte de -90 a 90 para 0 a 100
@@ -83,9 +83,9 @@ const PlayerScreen = () => {
     <div style={{ textAlign: 'center', padding: '20px' }} onClick={handleShoot}>
       <h2>Participante - Sala {roomId}</h2>
       <p>Toque para atirar</p>
-      <p>Alpha: {playerPosition?.alpha}</p>
-      <p>Beta: {playerPosition?.beta}</p>
-      <p>Gamma: {playerPosition?.gamma}</p>
+      <p>Alpha: {playerPosition?.alpha.toFixed(2)}</p>
+      <p>Beta: {playerPosition?.beta.toFixed(2)}</p>
+      <p>Gamma: {playerPosition?.gamma.toFixed(2)}</p>
       <button onClick={handleConfirmPhase}>Confirmar Próxima Fase</button>
     </div>
   );
