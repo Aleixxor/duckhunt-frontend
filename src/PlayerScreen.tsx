@@ -1,22 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { io } from 'socket.io-client';
-
-const socket = io(import.meta.env.VITE_SOCKET_URL); // Atualize para a URL do backend
+import { database, ref, set, push, update } from './firebase';
+import { v4 as uuidv4 } from 'uuid';
 
 const PlayerScreen = () => {
   const { roomId } = useParams();
   const [orientation, setOrientation] = useState(50); // valor entre 0 e 100
+  const [playerId, setPlayerId] = useState<string>('');
   const [confirmSent, setConfirmSent] = useState(false);
 
+  // Ao montar, gera um ID único e adiciona o jogador na sala
   useEffect(() => {
-    socket.emit('joinRoom', { roomId, isHost: false });
-    socket.on('playerJoined', (data: { playerId: string }) => {
-        console.log(`Player ${data.playerId} joined`);
-      // Feedback opcional quando um player entra
+    const id = uuidv4();
+    setPlayerId(id);
+    set(ref(database, `rooms/${roomId}/players/${id}`), {
+      id: id,
+      score: 0,
+      confirmed: false,
     });
+  }, [roomId]);
 
-    // Usa o DeviceOrientation para captar a inclinação
+  // Usa o DeviceOrientation para captar a inclinação do dispositivo
+  useEffect(() => {
     const handleOrientation = (event: DeviceOrientationEvent) => {
       if (event.gamma !== null) {
         // Converte de -90 a 90 para 0 a 100
@@ -26,29 +31,35 @@ const PlayerScreen = () => {
     };
 
     window.addEventListener('deviceorientation', handleOrientation);
-
     return () => {
       window.removeEventListener('deviceorientation', handleOrientation);
     };
-  }, [roomId]);
+  }, []);
 
+  // Ao tocar na tela, envia um tiro para o Firebase
   const handleShoot = () => {
-    // Envia o evento de tiro com a orientação atual
-    socket.emit('shoot', { roomId, playerId: socket.id, orientation });
+    const shotData = {
+      playerId,
+      orientation,
+      timestamp: Date.now(),
+    };
+    // Cria um novo nó em "shots" dentro da sala
+    push(ref(database, `rooms/${roomId}/shots`), shotData);
   };
 
+  // Confirma o início da próxima fase
   const handleConfirmPhase = (e: React.MouseEvent) => {
-    // Previne que o clique de confirmação seja confundido com tiro
+    // Evita que o clique de confirmação seja confundido com o tiro
     e.stopPropagation();
     if (!confirmSent) {
-      socket.emit('phaseConfirmed', { roomId, playerId: socket.id });
+      update(ref(database, `rooms/${roomId}/players/${playerId}`), { confirmed: true });
       setConfirmSent(true);
     }
   };
 
   return (
     <div style={{ textAlign: 'center', padding: '20px' }} onClick={handleShoot}>
-      <h2>Player - Sala {roomId}</h2>
+      <h2>Participante - Sala {roomId}</h2>
       <p>Toque para atirar</p>
       <button onClick={handleConfirmPhase}>Confirmar Próxima Fase</button>
     </div>

@@ -1,13 +1,11 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { io } from 'socket.io-client';
-
-const socket = io(import.meta.env.VITE_SOCKET_URL); // No deploy, atualize para a URL do backend
+import { database, ref, set, onValue, onChildAdded, remove, update } from './firebase';
 
 type Duck = {
   id: string;
-  x: number; // posição horizontal em porcentagem (0 a 100)
-  y: number; // posição vertical em porcentagem (0 a 100)
+  x: number; // valor entre 0 e 100 (porcentagem da largura)
+  y: number; // valor entre 0 e 100 (porcentagem da altura)
   alive: boolean;
 };
 
@@ -19,116 +17,118 @@ type Player = {
 
 const HostScreen = () => {
   const { roomId } = useParams();
-  const [ducks, setDucks] = useState<Duck[]>([]);
-  const [players, setPlayers] = useState<{ [key: string]: Player }>({});
+  const [ducks, setDucks] = useState<{ [id: string]: Duck }>({});
+  const [players, setPlayers] = useState<{ [id: string]: Player }>({});
   const [phaseEnded, setPhaseEnded] = useState(false);
-  const [confirmCount, setConfirmCount] = useState(0);
   const gameAreaRef = useRef<HTMLDivElement>(null);
 
-  // Função para iniciar uma nova fase
+  // Função para iniciar (ou reiniciar) a fase
   const startPhase = () => {
     setPhaseEnded(false);
-    setConfirmCount(0);
-    // Reseta a confirmação de todos os players
-    setPlayers(prev => {
-      const novos = { ...prev };
-      Object.keys(novos).forEach(id => novos[id].confirmed = false);
-      return novos;
-    });
-    // Cria 5 patos com posições aleatórias
-    const novosPatos: Duck[] = [];
+    // Cria 5 patos com posições aleatórias e y = 0
+    const newDucks: { [id: string]: Duck } = {};
     for (let i = 0; i < 5; i++) {
-      novosPatos.push({
-        id: `${Date.now()}-${i}`,
+      const duckId = `${Date.now()}-${i}`;
+      newDucks[duckId] = {
+        id: duckId,
         x: Math.random() * 100,
         y: 0,
-        alive: true
-      });
+        alive: true,
+      };
     }
-    setDucks(novosPatos);
+    setDucks(newDucks);
+    // Atualiza no Firebase
+    set(ref(database, `rooms/${roomId}/ducks`), newDucks);
+    set(ref(database, `rooms/${roomId}/gameState`), 'playing');
   };
+
+  // Ouve alterações na lista de jogadores
+  useEffect(() => {
+    const playersRef = ref(database, `rooms/${roomId}/players`);
+    onValue(playersRef, snapshot => {
+      const data = snapshot.val() || {};
+      setPlayers(data);
+    });
+  }, [roomId]);
+
+  // Processa os tiros enviados pelos jogadores
+  useEffect(() => {
+    const shotsRef = ref(database, `rooms/${roomId}/shots`);
+    onChildAdded(shotsRef, (snapshot) => {
+      const shot = snapshot.val();
+      const shotKey = snapshot.key;
+      // Verifica se algum pato foi atingido
+      setDucks(prevDucks => {
+        const updatedDucks = { ...prevDucks };
+        Object.keys(updatedDucks).forEach(duckId => {
+          const duck = updatedDucks[duckId];
+          if (duck.alive && Math.abs(duck.x - shot.orientation) < 10) {
+            // Pato atingido: marca como morto
+            duck.alive = false;
+            // Atualiza pontuação do jogador no Firebase
+            const playerRef = ref(database, `rooms/${roomId}/players/${shot.playerId}`);
+            if (players[shot.playerId]) {
+              const newScore = players[shot.playerId].score + 1;
+              update(playerRef, { score: newScore });
+            }
+          }
+        });
+        // Atualiza os patos no Firebase
+        set(ref(database, `rooms/${roomId}/ducks`), updatedDucks);
+        return updatedDucks;
+      });
+      // Remove o tiro para evitar reprocessamento
+      remove(ref(database, `rooms/${roomId}/shots/${shotKey}`));
+    });
+  }, [roomId, players]);
 
   // Animação simples: move os patos para baixo
   useEffect(() => {
     const interval = setInterval(() => {
-      setDucks(prev =>
-        prev.map(duck => {
-          if (!duck.alive) return duck;
-          let newY = duck.y + 1;
-          if (newY > 100) newY = 0;
-          return { ...duck, y: newY };
-        })
-      );
+      setDucks(prevDucks => {
+        const updatedDucks = { ...prevDucks };
+        let allDead = true;
+        Object.keys(updatedDucks).forEach(duckId => {
+          const duck = updatedDucks[duckId];
+          if (duck.alive) {
+            allDead = false;
+            let newY = duck.y + 1;
+            if (newY > 100) newY = 0;
+            duck.y = newY;
+          }
+        });
+        // Atualiza a posição dos patos no Firebase
+        set(ref(database, `rooms/${roomId}/ducks`), updatedDucks);
+        // Se todos os patos foram abatidos, encerra a fase
+        if (allDead && Object.keys(updatedDucks).length > 0) {
+          setPhaseEnded(true);
+          set(ref(database, `rooms/${roomId}/gameState`), 'phaseEnded');
+        }
+        return updatedDucks;
+      });
     }, 100);
     return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    socket.emit('joinRoom', { roomId, isHost: true });
-    socket.on('shoot', (data: { playerId: string; orientation: number }) => {
-      // data.orientation: valor entre 0 e 100 representando a posição horizontal
-      setDucks(prevDucks =>
-        prevDucks.map(duck => {
-          if (duck.alive && Math.abs(duck.x - data.orientation) < 10) {
-            // Pato atingido – aumenta pontos do player
-            setPlayers(prevPlayers => {
-              const atualizados = { ...prevPlayers };
-              if (atualizados[data.playerId]) {
-                atualizados[data.playerId].score += 1;
-              } else {
-                atualizados[data.playerId] = { id: data.playerId, score: 1, confirmed: false };
-              }
-              return atualizados;
-            });
-            return { ...duck, alive: false };
-          }
-          return duck;
-        })
-      );
-    });
-
-    socket.on('playerJoined', (data: { playerId: string }) => {
-      setPlayers(prev => ({ ...prev, [data.playerId]: { id: data.playerId, score: 0, confirmed: false } }));
-    });
-
-    socket.on('phaseConfirmed', (data: { playerId: string }) => {
-      setPlayers(prev => {
-        const atualizados = { ...prev };
-        if (atualizados[data.playerId] && !atualizados[data.playerId].confirmed) {
-          atualizados[data.playerId].confirmed = true;
-          setConfirmCount(c => c + 1);
-        }
-        return atualizados;
-      });
-    });
-
-    return () => {
-      socket.off('shoot');
-      socket.off('playerJoined');
-      socket.off('phaseConfirmed');
-    };
   }, [roomId]);
 
-  // Verifica se a fase terminou (todos os patos foram atingidos)
-  useEffect(() => {
-    if (ducks.every(duck => !duck.alive)) {
-      setPhaseEnded(true);
-    }
-  }, [ducks]);
-
-  const handleStartNextPhase = () => {
-    socket.emit('startNextPhase', { roomId });
-    startPhase();
+  // Remove um jogador (ação do host)
+  const handleRemovePlayer = (playerId: string) => {
+    remove(ref(database, `rooms/${roomId}/players/${playerId}`));
   };
 
-  const handleRemovePlayer = (playerId: string) => {
-    socket.emit('removePlayer', { roomId, playerId });
-    setPlayers(prev => {
-      const atualizados = { ...prev };
-      delete atualizados[playerId];
-      return atualizados;
+  // Inicia a próxima fase: reinicia os patos e reseta a confirmação dos jogadores
+  const handleStartNextPhase = () => {
+    // Reinicia a fase
+    startPhase();
+    // Reseta o flag "confirmed" para cada jogador
+    Object.keys(players).forEach(playerId => {
+      update(ref(database, `rooms/${roomId}/players/${playerId}`), { confirmed: false });
     });
   };
+
+  // Ao montar, inicia a fase (se ainda não foi iniciada)
+  useEffect(() => {
+    startPhase();
+  }, [roomId]);
 
   return (
     <div>
@@ -137,7 +137,7 @@ const HostScreen = () => {
         ref={gameAreaRef}
         style={{ position: 'relative', width: '100%', height: '400px', background: '#def' }}
       >
-        {ducks.map((duck) =>
+        {Object.values(ducks).map(duck =>
           duck.alive && (
             <div
               key={duck.id}
@@ -148,10 +148,10 @@ const HostScreen = () => {
                 width: '30px',
                 height: '30px',
                 background: 'yellow',
-                borderRadius: '50%'
+                borderRadius: '50%',
               }}
             >
-              {/* Aqui você pode colocar uma imagem do pato */}
+              {/* Aqui você pode substituir por uma imagem do pato */}
             </div>
           )
         )}
@@ -168,7 +168,6 @@ const HostScreen = () => {
       {phaseEnded && (
         <div>
           <h3>Fase Encerrada!</h3>
-          <p>Confirmaram: {confirmCount} jogadores</p>
           <button onClick={handleStartNextPhase}>Iniciar Próxima Fase</button>
         </div>
       )}

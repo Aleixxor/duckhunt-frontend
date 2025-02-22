@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { v4 as uuidv4 } from 'uuid';
-import { io } from 'socket.io-client';
-
-// OBS.: No desenvolvimento use o endereço local. No deploy, atualize com a URL do backend.
-const socket = io(import.meta.env.VITE_SOCKET_URL);
+import { database, ref, set, onChildAdded } from './firebase';
 
 const Home = () => {
   const [roomId, setRoomId] = useState('');
@@ -13,32 +10,33 @@ const Home = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Gera um ID único para a sala (por exemplo, usando os 6 primeiros caracteres do UUID)
+    // Gera um ID único para a sala (6 primeiros caracteres do UUID)
     const newRoomId = uuidv4().slice(0, 6);
     setRoomId(newRoomId);
 
-    // Conecta como host na sala
-    socket.emit('joinRoom', { roomId: newRoomId, isHost: true });
-
-    // Quando algum player entrar, o backend notifica e redirecionamos o host para a sala
-    socket.on('playerJoined', () => {
-      navigate(`/host/${newRoomId}`, { state: { role: 'host' } });
+    // Cria a sala no Firebase com dados iniciais
+    set(ref(database, `rooms/${newRoomId}`), {
+      players: {},
+      gameState: 'waiting'
     });
 
-    return () => {
-      socket.off('playerJoined');
-    }
+    // Ouve quando um novo jogador é adicionado na sala
+    const playersRef = ref(database, `rooms/${newRoomId}/players`);
+    onChildAdded(playersRef, () => {
+      // Assim que algum player entrar, redireciona o host para a tela de host
+      navigate(`/host/${newRoomId}`, { state: { role: 'host' } });
+    });
   }, [navigate]);
 
   const handleJoinRoom = () => {
-    if(joinCode.trim()){
+    if (joinCode.trim()) {
       navigate(`/player/${joinCode.trim()}`, { state: { role: 'player' } });
     }
   };
 
   return (
     <div style={{ textAlign: 'center', padding: '20px' }}>
-      <h1>Bem-vindo ao Chat</h1>
+      <h1>Bem-vindo ao Duck Hunt</h1>
       <p>Sua nova sala: <strong>{roomId}</strong></p>
       <QRCodeSVG value={`${window.location.origin}/player/${roomId}`} />
       <div style={{ marginTop: '20px' }}>
