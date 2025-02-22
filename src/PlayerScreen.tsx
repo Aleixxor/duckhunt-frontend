@@ -23,6 +23,18 @@ const PlayerScreen = () => {
   // Usa o DeviceOrientation para captar a inclinação do dispositivo
   useEffect(() => {
     const handleOrientation = (event: DeviceOrientationEvent) => {
+      // const acl = new Accelerometer({ frequency: 60 });
+      // acl.addEventListener("reading", () => {
+      //   console.log(`Acceleration x: ${acl.x}, y: ${acl.y}, z: ${acl.z}`);
+      // });
+
+      // acl.start();
+
+      const { alpha, beta, gamma } = event;
+      const playerPosition = { alpha, beta, gamma };
+      
+      push(ref(database, `rooms/${roomId}/players/${playerId}/position`), playerPosition);
+      
       if (event.gamma !== null) {
         // Converte de -90 a 90 para 0 a 100
         const value = ((event.gamma + 90) / 180) * 100;

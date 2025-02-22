@@ -13,6 +13,11 @@ type Player = {
   id: string;
   score: number;
   confirmed: boolean;
+  position: {
+    alpha: number;
+    beta: number;
+    gamma: number;
+  };
 };
 
 const HostScreen = () => {
@@ -161,7 +166,8 @@ const HostScreen = () => {
       <ul>
         {Object.values(players).map(player => (
           <li key={player.id}>
-            {player.id} - Pontos: {player.score} {player.confirmed && '(Confirmou)'}
+            {player.id} - Pontos: {player.score} {player.confirmed && '(Confirmou)'} - Position: {player.position?.alpha}, {player.position?.beta}, {player.position?.gamma}
+            <br />
             <button onClick={() => handleRemovePlayer(player.id)}>Remover</button>
           </li>
         ))}
