@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 
 // Atualize o endereço do backend conforme o deploy
-const socket = io('http://localhost:4000');
+const socket = io(import.meta.env.VITE_SOCKET_URL);
 
 const Room = () => {
   const { roomId } = useParams();

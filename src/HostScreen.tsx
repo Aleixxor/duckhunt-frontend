@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:4000'); // No deploy, atualize para a URL do backend
+const socket = io(import.meta.env.VITE_SOCKET_URL); // No deploy, atualize para a URL do backend
 
 type Duck = {
   id: string;

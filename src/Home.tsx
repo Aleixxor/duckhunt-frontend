@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { io } from 'socket.io-client';
 
 // OBS.: No desenvolvimento use o endereço local. No deploy, atualize com a URL do backend.
-const socket = io('http://localhost:4000');
+const socket = io(import.meta.env.VITE_SOCKET_URL);
 
 const Home = () => {
   const [roomId, setRoomId] = useState('');

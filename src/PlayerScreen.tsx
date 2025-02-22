@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:4000'); // Atualize para a URL do backend
+const socket = io(import.meta.env.VITE_SOCKET_URL); // Atualize para a URL do backend
 
 const PlayerScreen = () => {
   const { roomId } = useParams();
